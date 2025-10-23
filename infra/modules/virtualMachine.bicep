@@ -84,9 +84,6 @@ param tags object
 @description('Specified the location of the Data Collection Rules (DCR) resources.')
 param dcrLocation string
 
-// Use the password directly without string manipulation to avoid security validation issues
-var adminPassword = vmAdminPasswordOrKey
-
 // Variables
 var linuxConfiguration = {
   disablePasswordAuthentication: true
@@ -94,7 +91,7 @@ var linuxConfiguration = {
     publicKeys: [
       {
         path: '/home/${vmAdminUsername}/.ssh/authorized_keys'
-        keyData: adminPassword
+        keyData: vmAdminPasswordOrKey
       }
     ]
   }
@@ -141,7 +138,7 @@ resource virtualMachine 'Microsoft.Compute/virtualMachines@2021-11-01' = {
     osProfile: {
       computerName: take(vmName, 15)
       adminUsername: vmAdminUsername
-      adminPassword: adminPassword
+      adminPassword: vmAdminPasswordOrKey
       linuxConfiguration: (authenticationType == 'password') ? null : linuxConfiguration
     }
     storageProfile: {
