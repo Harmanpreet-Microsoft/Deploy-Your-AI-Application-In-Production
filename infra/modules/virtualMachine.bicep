@@ -84,9 +84,8 @@ param tags object
 @description('Specified the location of the Data Collection Rules (DCR) resources.')
 param dcrLocation string
 
-var randomString = uniqueString(resourceGroup().id, vmName, vmAdminPasswordOrKey)
-
-var adminPassword = (length(vmAdminPasswordOrKey) < 8) ? '${vmAdminPasswordOrKey}${take(randomString, 12)}' : vmAdminPasswordOrKey
+// Use the password directly without string manipulation to avoid security validation issues
+var adminPassword = vmAdminPasswordOrKey
 
 // Variables
 var linuxConfiguration = {
