@@ -58,6 +58,7 @@
     },
     "aiEmbeddingModelDeployment": {
       "value": {
+        "name": "text-embedding-3-small",
         "modelName": "text-embedding-3-small",
         "version": "1",
         "capacity": 100
@@ -65,6 +66,7 @@
     },
     "aiGPTModelDeployment": {
       "value": {
+        "name": "gpt-4o",
         "modelName": "gpt-4o",
         "version": "2024-05-13",
         "capacity": 150
