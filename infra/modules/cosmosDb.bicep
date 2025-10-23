@@ -57,6 +57,9 @@ module cosmosDb 'br/public:avm/res/document-db/database-account:0.13.0' =  {
     ]
     disableKeyBasedMetadataWriteAccess: true
     disableLocalAuth: true
+    managedIdentities: {
+      systemAssigned: true
+    }
     location: location
     minimumTlsVersion: 'Tls12'
     defaultConsistencyLevel: 'Session'
