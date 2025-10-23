@@ -20,6 +20,28 @@ jobs:
       AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
       AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
       AZURE_USER_OBJECT_ID: ''
+      # Required VM password for jump-box
+      AZURE_VM_ADMIN_PASSWORD: ${{ secrets.AZURE_VM_ADMIN_PASSWORD }}
+      # Optional parameters with defaults
+      AZURE_VM_SIZE: 'Standard_DS4_v2'
+      AZURE_AI_DEPLOYMENTS_LOCATION: 'eastus2'
+      AZURE_NETWORK_ISOLATION: 'false'
+      # Azure service enablement flags - these need to be set in repository variables
+      AZURE_ACR_ENABLED: ${{ vars.AZURE_ACR_ENABLED }}
+      AZURE_COSMOS_DB_ENABLED: ${{ vars.AZURE_COSMOS_DB_ENABLED }}
+      AZURE_SQL_SERVER_ENABLED: ${{ vars.AZURE_SQL_SERVER_ENABLED }}
+      AZURE_API_MANAGEMENT_ENABLED: ${{ vars.AZURE_API_MANAGEMENT_ENABLED }}
+      AZURE_AI_SEARCH_ENABLED: ${{ vars.AZURE_AI_SEARCH_ENABLED }}
+      AZURE_AI_CONTENT_SAFETY_ENABLED: ${{ vars.AZURE_AI_CONTENT_SAFETY_ENABLED }}
+      AZURE_AI_VISION_ENABLED: ${{ vars.AZURE_AI_VISION_ENABLED }}
+      AZURE_AI_LANGUAGE_ENABLED: ${{ vars.AZURE_AI_LANGUAGE_ENABLED }}
+      AZURE_AI_SPEECH_ENABLED: ${{ vars.AZURE_AI_SPEECH_ENABLED }}
+      AZURE_AI_TRANSLATOR_ENABLED: ${{ vars.AZURE_AI_TRANSLATOR_ENABLED }}
+      AZURE_AI_DOC_INTELLIGENCE_ENABLED: ${{ vars.AZURE_AI_DOC_INTELLIGENCE_ENABLED }}
+      AZURE_APP_SAMPLE_ENABLED: ${{ vars.AZURE_APP_SAMPLE_ENABLED }}
+      # Authentication parameters (if using app sample)
+      AZURE_AUTH_CLIENT_ID: ${{ vars.AZURE_AUTH_CLIENT_ID }}
+      AZURE_AUTH_CLIENT_SECRET: ${{ secrets.AZURE_AUTH_CLIENT_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
