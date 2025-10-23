@@ -59,6 +59,13 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Create Resource Group
+        run: |
+          $resourceGroupName = "rg-${{ vars.AZURE_ENV_NAME }}"
+          Write-Host "Creating resource group: $resourceGroupName in location: ${{ vars.AZURE_LOCATION }}"
+          az group create --name $resourceGroupName --location ${{ vars.AZURE_LOCATION }}
+          echo "AZURE_RESOURCE_GROUP=$resourceGroupName" >> $env:GITHUB_ENV
+        shell: pwsh
       - name: Provision Infrastructure
         run: azd provision --no-prompt
         env:
