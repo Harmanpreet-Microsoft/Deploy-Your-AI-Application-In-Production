@@ -19,6 +19,27 @@ jobs:
       AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
       AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Set correct principal type for GitHub Actions ServicePrincipal
+      AZURE_DEPLOYER_PRINCIPAL_TYPE: ServicePrincipal
+          # Infrastructure parameter defaults for pipeline
+      AZURE_ACR_ENABLED: 'false'
+      AZURE_API_MANAGEMENT_ENABLED: 'false'
+      AZURE_AI_CONTENT_SAFETY_ENABLED: 'false'
+      AZURE_AI_DOC_INTELLIGENCE_ENABLED: 'false'
+      AZURE_AI_LANGUAGE_ENABLED: 'false'
+      AZURE_AI_SEARCH_ENABLED: 'true'
+      AZURE_AI_SPEECH_ENABLED: 'false'
+      AZURE_AI_TRANSLATOR_ENABLED: 'false'
+      AZURE_AI_VISION_ENABLED: 'false'
+      AZURE_APP_SAMPLE_ENABLED: 'false'
+      AZURE_COSMOS_DB_ENABLED: 'true'
+      AZURE_NETWORK_ISOLATION: 'false'
+      AZURE_SQL_SERVER_ENABLED: 'false'
+      AZURE_AI_DEPLOYMENTS_LOCATION: ${{ vars.AZURE_LOCATION }}
+      AZURE_DEV_COLLECT_TELEMETRY: ${{ vars.AZURE_DEV_COLLECT_TELEMETRY }}
+
       AZURE_USER_OBJECT_ID: ''
     steps:
       - name: Checkout
