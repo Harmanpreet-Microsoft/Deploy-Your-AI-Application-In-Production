@@ -27,13 +27,22 @@ param existingVnetResourceId = readEnvironmentVariable('EXISTING_VNET_RESOURCE_I
 param aiSearchAdditionalAccessObjectIds = []
 
 // ========================================
+// OPTIONAL INPUTS (Existing AI Foundry Project)
+// ========================================
+// Use this to reuse an existing AI Foundry project instead of creating new ones.
+// Format: /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<ai-services-name>/projects/<project-name>
+// When provided, the deployment skips creating AI Foundry resources and uses the existing ones.
+// This allows deploying Fabric workspaces, PostgreSQL, and other Fabric/Data resources while reusing an existing AI infrastructure.
+param existingAiFoundryAiProjectResourceId = readEnvironmentVariable('AZURE_EXISTING_AI_PROJECT_RESOURCE_ID', '')
+
+// ========================================
 // OPTIONAL INPUTS (Configuration)
 // ========================================
 
 param deploymentTags = {}
 param appConfigLabel = 'ai-lz'
 // Create the provisioning of the AI landing zone with network isolation (vnet,private end points, etc)
-param networkIsolation = true
+param networkIsolation = false
 
 // Coordinate PostgreSQL networking with the overall isolation flag by default.
 param postgreSqlNetworkIsolation = false
@@ -81,7 +90,8 @@ param postgreSqlStorageSizeGB = 32
 // ========================================
 
 param deployGroundingWithBing = false
-param deployAiFoundry = true
+// Automatically disable AI Foundry creation when reusing an existing project
+param deployAiFoundry = readEnvironmentVariable('AZURE_EXISTING_AI_PROJECT_RESOURCE_ID', '') == ''
 param deployAiFoundrySubnet = false
 param deployAppConfig = true
 param deployKeyVault = true
@@ -100,7 +110,8 @@ param deployNsgs = true
 param sideBySideDeploy = readEnvironmentVariable('SIDE_BY_SIDE', 'true') == 'true'
 param deploySoftware = false
 param deployApim = false
-param deployAfProject = true
+// Automatically disable AI Foundry project creation when reusing an existing project
+param deployAfProject = readEnvironmentVariable('AZURE_EXISTING_AI_PROJECT_RESOURCE_ID', '') == ''
 param deployAAfAgentSvc = false
 param enableAgenticRetrieval = readEnvironmentVariable('ENABLE_AGENTIC_RETRIEVAL', 'false') == 'true'
 
@@ -245,7 +256,7 @@ param fabricWorkspaceName = '' // optional (helpful for naming/UX)
 param fabricCapacitySku = 'F8'
 
 // Fabric capacity admin members (UPN emails preferred).
-param fabricCapacityAdmins = []
+param fabricCapacityAdmins = ['v-harmanprka@MngEnvMCAP993385.onmicrosoft.com']
 
 // ========================================
 // PURVIEW PARAMETERS (Optional)

@@ -654,6 +654,39 @@ Recommended combinations:
 }
 ```
 
+### 3.1 Reusing an Existing AI Foundry Project
+
+This feature allows you to deploy Fabric workspaces, PostgreSQL databases, and other data infrastructure while reusing an existing AI Foundry project. This is useful when:
+- You already have an AI Foundry project deployed
+- You want to add Fabric/Data capabilities to an existing AI infrastructure
+- You're migrating workloads to leverage existing AI resources
+
+**Parameter**: `existingAiFoundryAiProjectResourceId`
+
+**Format**: `/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.CognitiveServices/accounts/<ai-services-name>/projects/<project-name>`
+
+**Set via azd**:
+```bash
+azd env set AZURE_EXISTING_AI_PROJECT_RESOURCE_ID "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-ai-rg/providers/Microsoft.CognitiveServices/accounts/my-ai-services/projects/my-project"
+```
+
+**In main.bicepparam**:
+```bicep
+param existingAiFoundryAiProjectResourceId = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-ai-rg/providers/Microsoft.CognitiveServices/accounts/my-ai-services/projects/my-project'
+```
+
+**Behavior when set**:
+- Skips creating new AI Foundry account and project
+- Uses the existing AI Services endpoint and project endpoint
+- Deploys Fabric capacity, PostgreSQL, and other data resources as configured
+- Sets up appropriate outputs for post-deployment scripts
+
+**Finding Your AI Foundry Project Resource ID**:
+1. Navigate to [Azure Portal](https://portal.azure.com)
+2. Go to your AI Foundry project
+3. Click on **Properties** in the left menu
+4. Copy the **Resource ID** value
+
 ### 4. Multi-Model AI Application
 
 ```json

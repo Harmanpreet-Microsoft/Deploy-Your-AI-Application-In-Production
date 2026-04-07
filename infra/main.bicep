@@ -111,6 +111,15 @@ param aiFoundryStorageAccountResourceId string = ''
 param aiFoundryCosmosDBAccountResourceId string = ''
 param keyVaultResourceId string = ''
 
+// ========================================
+// AI FOUNDRY PROJECT REUSE (Optional)
+// ========================================
+// Use this to reuse an existing AI Foundry project instead of creating new ones.
+// Format: /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<ai-services-name>/projects/<project-name>
+
+@description('Optional. Resource ID of an existing AI Foundry AI Project to reuse. When provided, the deployment will skip creating AI Foundry resources and will use the existing ones. This allows deploying Fabric workspaces and other resources while reusing an existing AI infrastructure.')
+param existingAiFoundryAiProjectResourceId string = ''
+
 @description('Identity options.')
 param useUAI bool = false
 param useCAppAPIKey bool = false
@@ -342,6 +351,35 @@ var effectiveFabricCapacityMode = fabricCapacityMode
 var effectiveFabricWorkspaceMode = fabricWorkspaceMode
 var effectiveLocation = !empty(location) ? location : resourceGroup().location
 
+// ========================================
+// AI FOUNDRY PROJECT REUSE LOGIC
+// ========================================
+
+// Determine if we're reusing an existing AI Foundry project
+var useExistingAiFoundryAiProject = !empty(existingAiFoundryAiProjectResourceId)
+
+// Parse existing AI Foundry project resource ID to extract components
+// Format: /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<ai-services-name>/projects/<project-name>
+var aiFoundryAiServicesSubscriptionId = useExistingAiFoundryAiProject
+  ? split(existingAiFoundryAiProjectResourceId, '/')[2]
+  : subscription().subscriptionId
+
+var aiFoundryAiServicesResourceGroupName = useExistingAiFoundryAiProject
+  ? split(existingAiFoundryAiProjectResourceId, '/')[4]
+  : resourceGroup().name
+
+var aiFoundryAiServicesResourceName = useExistingAiFoundryAiProject
+  ? split(existingAiFoundryAiProjectResourceId, '/')[8]
+  : aiFoundryAccountName
+
+var aiFoundryAiProjectResourceName = useExistingAiFoundryAiProject
+  ? split(existingAiFoundryAiProjectResourceId, '/')[10]
+  : aiFoundryProjectName
+
+// Configure deployAiFoundry based on whether we're reusing an existing project
+// When reusing, skip AI Foundry creation but allow model deployments on existing resource
+var effectiveDeployAiFoundry = useExistingAiFoundryAiProject ? false : deployAiFoundry
+
 var envSlugSanitized = replace(replace(replace(replace(replace(replace(replace(replace(toLower(environmentName), ' ', ''), '-', ''), '_', ''), '.', ''), '/', ''), '\\', ''), ':', ''), ',', '')
 
 var envSlugTrimmed = substring(envSlugSanitized, 0, min(40, length(envSlugSanitized)))
@@ -372,6 +410,35 @@ var effectivePostgreSqlAdminPassword = postgreSqlAdminPassword == '$(secretOrRan
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
   name: last(split(effectiveKeyVaultResourceId, '/'))
 }
+
+// ========================================
+// EXISTING AI FOUNDRY RESOURCES (when reusing)
+// ========================================
+
+// Reference existing AI Foundry AI Services when reusing
+resource existingAiFoundryAiServices 'Microsoft.CognitiveServices/accounts@2025-06-01' existing = if (useExistingAiFoundryAiProject) {
+  name: aiFoundryAiServicesResourceName
+  scope: resourceGroup(aiFoundryAiServicesSubscriptionId, aiFoundryAiServicesResourceGroupName)
+}
+
+// Reference existing AI Foundry Project when reusing
+resource existingAiFoundryAiServicesProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' existing = if (useExistingAiFoundryAiProject) {
+  name: aiFoundryAiProjectResourceName
+  parent: existingAiFoundryAiServices
+}
+
+// Computed AI Foundry values (work whether using existing or new resources)
+var aiFoundryAiProjectName = useExistingAiFoundryAiProject
+  ? existingAiFoundryAiServicesProject.name
+  : aiFoundryProjectName
+
+var aiFoundryAiProjectEndpoint = useExistingAiFoundryAiProject
+  ? existingAiFoundryAiServicesProject.properties.endpoints['AI Foundry API']
+  : 'https://${aiFoundryAccountName}.services.ai.azure.com/api/projects/${aiFoundryProjectName}'
+
+var aiFoundryAiAccountEndpoint = useExistingAiFoundryAiProject
+  ? 'https://${aiFoundryAiServicesResourceName}.cognitiveservices.azure.com/'
+  : 'https://${aiFoundryAccountName}.cognitiveservices.azure.com/'
 
 resource postgreSqlPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (deployPostgreSql && postgreSqlNetworkIsolation) {
   name: postgreSqlPrivateDnsZoneName
@@ -478,10 +545,18 @@ var effectiveStorageAccountResourceId = resourceId('Microsoft.Storage/storageAcc
 output virtualNetworkResourceId string = effectiveVnetResourceId
 output keyVaultResourceId string = effectiveKeyVaultResourceId
 output storageAccountResourceId string = effectiveStorageAccountResourceId
-output aiFoundryProjectName string = aiFoundryProjectName
+output aiFoundryProjectNameOut string = aiFoundryAiProjectName
 output aiSearchResourceId string = effectiveAiSearchResourceId
 output aiSearchName string = searchServiceName
 output aiSearchAdditionalAccessObjectIds array = aiSearchAdditionalAccessObjectIds
+
+// AI Foundry reuse outputs
+output useExistingAiFoundryAiProjectOut bool = useExistingAiFoundryAiProject
+output aiFoundryAccountName string = aiFoundryAiServicesResourceName
+output aiFoundryProjectEndpoint string = aiFoundryAiProjectEndpoint
+output aiFoundryAccountEndpoint string = aiFoundryAiAccountEndpoint
+output aiFoundrySubscriptionId string = aiFoundryAiServicesSubscriptionId
+output aiFoundryResourceGroupName string = aiFoundryAiServicesResourceGroupName
 
 // Subnet IDs (constructed from VNet ID and subnet names)
 output peSubnetResourceId string = '${effectiveVnetResourceId}/subnets/${peSubnetName}'
