@@ -98,9 +98,12 @@ if (-not $AISearchName -and $outputs -and $outputs.aiSearchName -and $outputs.ai
 if (-not $AISearchResourceGroup -and $outputs -and $outputs.aiSearchResourceGroup -and $outputs.aiSearchResourceGroup.value) { $AISearchResourceGroup = $outputs.aiSearchResourceGroup.value }
 if (-not $AISearchSubscriptionId -and $outputs -and $outputs.aiSearchSubscriptionId -and $outputs.aiSearchSubscriptionId.value) { $AISearchSubscriptionId = $outputs.aiSearchSubscriptionId.value }
 if (-not $AIFoundryName -and $outputs -and $outputs.aiFoundryName -and $outputs.aiFoundryName.value) { $AIFoundryName = $outputs.aiFoundryName.value }
+if (-not $AIFoundryName -and $outputs -and $outputs.aiFoundryAccountName -and $outputs.aiFoundryAccountName.value) { $AIFoundryName = $outputs.aiFoundryAccountName.value }
 if (-not $AIFoundryResourceGroup -and $outputs -and $outputs.aiFoundryResourceGroup -and $outputs.aiFoundryResourceGroup.value) { $AIFoundryResourceGroup = $outputs.aiFoundryResourceGroup.value }
+if (-not $AIFoundryResourceGroup -and $outputs -and $outputs.aiFoundryResourceGroupName -and $outputs.aiFoundryResourceGroupName.value) { $AIFoundryResourceGroup = $outputs.aiFoundryResourceGroupName.value }
 if (-not $AIFoundrySubscriptionId -and $outputs -and $outputs.aiFoundrySubscriptionId -and $outputs.aiFoundrySubscriptionId.value) { $AIFoundrySubscriptionId = $outputs.aiFoundrySubscriptionId.value }
 if (-not $script:aiFoundryProjectName -and $outputs -and $outputs.aiFoundryProjectName -and $outputs.aiFoundryProjectName.value) { $script:aiFoundryProjectName = $outputs.aiFoundryProjectName.value }
+if (-not $script:aiFoundryProjectName -and $outputs -and $outputs.aiFoundryProjectNameOut -and $outputs.aiFoundryProjectNameOut.value) { $script:aiFoundryProjectName = $outputs.aiFoundryProjectNameOut.value }
 
 # Get values from azd environment if not provided
 if (-not $AISearchName -or -not $AIFoundryName) {
@@ -120,11 +123,32 @@ if (-not $AISearchName -or -not $AIFoundryName) {
         if (-not $AISearchSubscriptionId) { $AISearchSubscriptionId = $env_vars['aiSearchSubscriptionId'] }
         if (-not $AISearchSubscriptionId) { $AISearchSubscriptionId = $env_vars['AZURE_SUBSCRIPTION_ID'] }
         if (-not $AIFoundryName) { $AIFoundryName = $env_vars['aiFoundryName'] }
+        if (-not $AIFoundryName) { $AIFoundryName = $env_vars['aiFoundryAccountName'] }
+        # aiFoundryResourceGroupName is the explicit user-provided RG for an existing foundry;
+        # aiFoundryResourceGroup may be set to the main deployment RG by preprovision scripts.
+        # Prefer aiFoundryResourceGroupName when present as it is more specific.
+        if (-not $AIFoundryResourceGroup) { $AIFoundryResourceGroup = $env_vars['aiFoundryResourceGroupName'] }
         if (-not $AIFoundryResourceGroup) { $AIFoundryResourceGroup = $env_vars['aiFoundryResourceGroup'] }
         if (-not $AIFoundryResourceGroup) { $AIFoundryResourceGroup = $AISearchResourceGroup }
         if (-not $AIFoundrySubscriptionId) { $AIFoundrySubscriptionId = $env_vars['aiFoundrySubscriptionId'] }
         if (-not $AIFoundrySubscriptionId) { $AIFoundrySubscriptionId = $AISearchSubscriptionId }
         $script:aiFoundryProjectName = $env_vars['aiFoundryProjectName']
+        if (-not $script:aiFoundryProjectName) { $script:aiFoundryProjectName = $env_vars['aiFoundryProjectNameOut'] }
+
+        # Parse AZURE_EXISTING_AI_PROJECT_RESOURCE_ID as an authoritative source for all foundry fields.
+        # Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.CognitiveServices/accounts/{account}/projects/{project}
+        $existingProjectResourceId = $env_vars['AZURE_EXISTING_AI_PROJECT_RESOURCE_ID']
+        if (-not $existingProjectResourceId) { $existingProjectResourceId = $env:AZURE_EXISTING_AI_PROJECT_RESOURCE_ID }
+        if ($existingProjectResourceId -and $existingProjectResourceId -match '^/subscriptions/([^/]+)/resourceGroups/([^/]+)/providers/Microsoft\.CognitiveServices/accounts/([^/]+)/projects/([^/]+)$') {
+            if (-not $AIFoundrySubscriptionId) { $AIFoundrySubscriptionId = $matches[1] }
+            # The resource ID RG is authoritative for the existing foundry — override the RG that may
+            # have been set to the main deployment resource group by preprovision scripts.
+            $AIFoundryResourceGroup = $matches[2]
+            if (-not $AIFoundryName) { $AIFoundryName = $matches[3] }
+            if (-not $script:aiFoundryProjectName) { $script:aiFoundryProjectName = $matches[4] }
+            Log "Resolved AI Foundry configuration from AZURE_EXISTING_AI_PROJECT_RESOURCE_ID"
+        }
+
         if (-not $AIFoundryName -and $script:aiFoundryProjectName) {
             Warn "AI Foundry account name not exported; attempting discovery from resource group using project hint '$script:aiFoundryProjectName'."
         }
