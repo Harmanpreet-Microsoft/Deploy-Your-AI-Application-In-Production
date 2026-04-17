@@ -10,6 +10,10 @@ on:
       - 'scripts/**'
       - '.github/workflows/azure-dev.yml'
 
+concurrency:
+  group: azd-deployment-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   id-token: write
   contents: read
