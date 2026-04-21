@@ -12,7 +12,7 @@ After running `azd up` or `azd provision` which then trigger the `azd hooks run 
 | Fabric Workspace | [app.fabric.microsoft.com](https://app.fabric.microsoft.com) | Workspace visible with 3 lakehouses |
 | PostgreSQL Flexible Server | Azure Portal → Azure Database for PostgreSQL flexible servers | **Ready** |
 | Microsoft Foundry project | [ai.azure.com](https://ai.azure.com) | Project accessible, models deployed |
-| AI Search Index | Azure Portal → AI Search → Indexes | `onelake-index` exists |
+| AI Search Index | Azure Portal → AI Search → Indexes | `workspace-<envname>-documents-index` exists |
 | Purview Scan | Purview Portal → Data Map → Sources | Fabric data source registered |
 
 ---
@@ -47,11 +47,17 @@ az fabric capacity resume --capacity-name <capacity-name> --resource-group <rg-n
 
 5. Open the **bronze** lakehouse and verify the `Files/documents` folder structure exists
 
-### Optional PostgreSQL Mirroring Follow-Up
+### PostgreSQL Mirroring Follow-Up (Manual)
 
-End-to-end mirroring is not complete when running `azd up` or post-provisioning. Some steps are manual.
+End-to-end mirroring is not complete after `azd up`. The following manual steps are required:
 
-For the full steps (including the Fabric portal **New item** mirror), follow [PostgreSQL mirroring](./postgresql_mirroring.md).
+1. **Enable Key Vault public access** temporarily (if network-isolated)
+2. **Enable Fabric Mirroring** on the PostgreSQL resource in Azure Portal (left-side menu → **Fabric Mirroring**)
+3. **Create the seed table** via Azure Cloud Shell or `psql`
+4. **Connect in Fabric** using the PostgreSQL endpoint, credentials, and database name
+5. **Select the seed table** and create the mirrored database
+
+For the complete step-by-step guide, see [PostgreSQL mirroring](./postgresql_mirroring.md).
 
 ---
 
@@ -76,16 +82,16 @@ psql "host=<server>.postgres.database.azure.com port=5432 dbname=<db-name> user=
 ## 4. Verify AI Search Index
 
 1. Navigate to **Azure Portal** → **AI Search** → your search service
-2. Go to **Indexes** and verify `onelake-index` exists
+2. Go to **Indexes** and verify an index named `workspace-<envname>-documents-index` exists
 3. Check the **Document count** — should be > 0 if documents were uploaded to the bronze lakehouse
-4. Go to **Indexers** and verify `onelake-indexer` shows:
+4. Go to **Indexers** and verify `workspace-<envname>-documents-indexer` shows:
    - **Status**: Success
    - **Last run**: Recent timestamp
 
 > **Note:** Uploading new files to the bronze lakehouse does not auto-trigger the indexer. Re-run it manually after uploads:
 
 ```bash
-az search indexer run --name onelake-indexer --service-name <search-name> --resource-group <rg>
+az search indexer run --name workspace-<envname>-documents-indexer --service-name <search-name> --resource-group <rg>
 ```
 
 ### Test the Index
@@ -93,7 +99,7 @@ az search indexer run --name onelake-indexer --service-name <search-name> --reso
 Re-index after uploads if you do not see new documents:
 
 ```bash
-az search indexer run --name onelake-indexer --service-name <search-name> --resource-group <rg>
+az search indexer run --name workspace-<envname>-documents-indexer --service-name <search-name> --resource-group <rg>
 ```
 
 1. In the Search service, go to **Search explorer**
@@ -122,18 +128,18 @@ Before testing, upload at least one sample PDF into the bronze lakehouse (Files/
 Re-run the indexer in the Azure portal:
 
 1. Navigate to **Azure Portal** → **AI Search** → your search service
-2. Go to **Indexers** and select `onelake-indexer`
+2. Go to **Indexers** and select `workspace-<envname>-documents-indexer`
 3. Click **Run**
 
 Or run it from the CLI:
 
 ```bash
-az search indexer run --name onelake-indexer --service-name <search-name> --resource-group <rg>
+az search indexer run --name workspace-<envname>-documents-indexer --service-name <search-name> --resource-group <rg>
 ```
 
 1. In Microsoft Foundry, go to **Playgrounds** → **Chat**
 2. Click **Add your data**
-3. Select your AI Search index (`onelake-index`)
+3. Select your AI Search index (named `workspace-<envname>-documents-index`, not the `onelake-*` index)
 4. Ask a question about your indexed documents
 
 If the connection fails, verify RBAC roles are assigned (see Troubleshooting section).
@@ -273,12 +279,12 @@ pwsh ./scripts/automationScripts/OneLakeIndex/06_setup_ai_foundry_search_rbac.ps
    - If needed, follow [Testing AI Search Connection in Playground](#testing-ai-search-connection-in-playground) to upload a sample PDF
    
 2. Check indexer status:
-   - Azure Portal → AI Search → Indexers → `onelake-indexer`
+   - Azure Portal → AI Search → Indexers → `workspace-<envname>-documents-indexer`
    - Review execution history for errors
 
 3. Manually trigger indexer:
    ```bash
-   az search indexer run --name onelake-indexer --service-name <search-name> --resource-group <rg>
+   az search indexer run --name workspace-<envname>-documents-indexer --service-name <search-name> --resource-group <rg>
    ```
 
 ### Purview Scan Failed
@@ -314,10 +320,9 @@ pwsh ./scripts/automationScripts/<path-to-script>.ps1
 
 Once verification is complete:
 
-1. **Upload documents** to the bronze lakehouse for indexing (if you haven't already in previous steps)
-2. **Test PostgreSQL connectivity** (if you plan to use the database)
-3. **Complete PostgreSQL mirroring in Fabric** (if needed) — follow [PostgreSQL mirroring](./postgresql_mirroring.md)
-4. **Test the Microsoft Foundry playground** with your indexed content
-5. **Configure additional models** if needed
-6. **[Deploy your app](./deploy_app_from_foundry.md)** from the Microsoft Foundry playground
-7. **Review governance** in Microsoft Purview
+1. **Complete PostgreSQL mirroring in Fabric** — follow [PostgreSQL mirroring](./postgresql_mirroring.md) for the manual steps
+2. **Upload documents** to the bronze lakehouse (`Files/documents/`) for indexing
+3. **Re-trigger the AI Search indexer** to process uploaded files
+4. **Deploy your chat web app** from the Microsoft Foundry playground — follow [Deploy app from Foundry](./deploy_app_from_foundry.md)
+5. **Configure VNet integration** on the web app (network-isolated deployments only)
+6. **Review governance** in Microsoft Purview

@@ -72,16 +72,60 @@ az keyvault secret show --vault-name <keyvault-name> --name <secret-name> --quer
 
 If the database or login fails, confirm `postgreSqlAllowAzureServices = true` (or add the `0.0.0.0` firewall rule).
 
-### Private Network or Private Endpoint
+### Network-Isolated Deployment (WAF)
 
-Follow this path when the PostgreSQL server is private-only or Fabric cannot reach it over public networking.
+Follow this path when `networkIsolation = true`. Key Vault and PostgreSQL are behind private endpoints, so you need to temporarily enable public access to complete the mirror manually.
 
-You must supply a Fabric VNet gateway ID for the connection flow in this mode. The repo may add a gateway option in a future update, but today you need to bring your own gateway and set `fabricPostgresGatewayId` before creating the connection.
+1. **Enable public network access on Key Vault:**
+   - Azure Portal → **Key Vaults** → select the deployment Key Vault
+   - Go to **Networking** → set **Public network access** to **Enabled** → **Apply**
 
-1. Treat mirroring as deferred for this provisioning cycle.
-2. Use the PostgreSQL server's **Fabric Mirroring** page in Azure Portal only if you want to confirm the source-server prerequisite experience.
-3. Continue validating the rest of the deployment: Fabric workspace, lakehouses, PostgreSQL server, AI Search, and Purview.
-4. For end-to-end mirroring with PostgreSQL kept private, use the Fabric VNet gateway route.
+2. **Enable Fabric Mirroring on the PostgreSQL resource:**
+   - Azure Portal → **Azure Database for PostgreSQL flexible servers** → select your server
+   - In the left-side menu, select **Fabric Mirroring**
+   - Enable mirroring and save
+
+3. **Create the seed table** using Azure Cloud Shell (Bash) in the portal:
+
+   ```bash
+   export PGPASSWORD=$(az keyvault secret show \
+     --vault-name <keyvault-name> \
+     --name postgres-admin-password \
+     --query value -o tsv) && \
+   psql -h <pg-server-fqdn> -U pgadmin -d postgres -c \
+     "CREATE TABLE IF NOT EXISTS public.fabric_mirror_seed (
+        id bigserial PRIMARY KEY,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      INSERT INTO public.fabric_mirror_seed (created_at)
+        SELECT now() WHERE NOT EXISTS (SELECT 1 FROM public.fabric_mirror_seed);
+      ALTER TABLE public.fabric_mirror_seed OWNER TO pgadmin;" && \
+   unset PGPASSWORD
+   ```
+
+   Replace `<keyvault-name>` with your Key Vault name and `<pg-server-fqdn>` with the PostgreSQL server FQDN (e.g., `pg-<token>.postgres.database.azure.com`).
+
+4. **Copy the admin password** from Key Vault:
+   - Azure Portal → **Key Vaults** → select the deployment Key Vault
+   - Go to **Secrets** → select `postgres-admin-password` → copy the **Secret value**
+
+5. **Create the mirror in Fabric:**
+   - Go to [app.fabric.microsoft.com](https://app.fabric.microsoft.com) and open your workspace (e.g., `workspace-<envname>`)
+   - Select **New item** → **Mirror data** → **Azure Database for PostgreSQL**
+   - Enter:
+     - **Server:** PostgreSQL FQDN (e.g., `pg-<token>.postgres.database.azure.com`)
+     - **Database:** `postgres`
+     - **Username:** `pgadmin`
+     - **Password:** the Key Vault secret value copied in step 4
+   - Click **Connect**
+
+6. **Select data and complete the mirror:**
+   - Choose **Select data**, pick the `public.fabric_mirror_seed` table
+   - Select **Connect** → name the mirror (or accept the default) → **Create mirrored database**
+
+7. **Re-lock Key Vault** by disabling public network access after the mirror is established.
+
+> **Note:** For fully private deployments where you do not want to temporarily open Key Vault, you must supply a Fabric VNet gateway ID. Set `fabricPostgresGatewayId` before creating the connection. The repo may add a gateway option in a future update.
 
 ### What to Do First
 
